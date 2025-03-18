@@ -4,9 +4,11 @@ from langchain_community.document_loaders.pdf import PyPDFDirectoryLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import FAISS
 import os
-from langchain_community.embeddings import Nomic
+# from langchain_community.embeddings import Nomic
 from langchain_community.embeddings import OllamaEmbeddings
 from MistralEmbedder import embedder
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_community.llms import ollama
 
 #Charger les documents depuis un dossier 
 def load_docs(folderDirectory) -> list:
@@ -36,29 +38,72 @@ def initDb(chunks,folderPath,embeddings):
 # def embedQuery(query ,embedding):
 #     return embedding.embed_query(query)
 
-def main():
-    path = "./Docs"
-    embedding= OllamaEmbeddings(
-        model="nomic-embed-text")
-    docs = load_docs(path)
-    chunks = split(docs)
-    vectoreStore = initDb(chunks=chunks, folderPath= path,embeddings=embedding)
-    query = input ("Pose ta question : ")
-    results = vectoreStore.similarity_search(query=query)    #Cela réenvoi une liste 
-    l = []
-    taille = 0
-    for r in results:
-         l.append(r.page_content)
-    if len(l) < 2 :
-        for r in l :
-            print(r)
-            taille += 1
-    else:
-        for i in range(2):
-            print(l[i])
-            print("\n\n")
-            taille +=1
-    print("Le nombre de chunk retourné est : ",taille)
+
+from langchain_community.llms import ollama
+from langchain_core.prompts import ChatPromptTemplate
+
+def llm_response(query, context):
+    # Construction du prompt en utilisant un formatage propre
+    prompt = f"""
+    Réponds à la question en utilisant uniquement le contexte suivant:
+    {context}.
     
-if __name__=="__main__":
+    ---------------------------------------------------
+    Réponds à la question suivante : {query} en utilisant uniquement le contexte mentionné ci-dessus.
+    """
+    # Création du template du prompt et application des valeurs
+    prompt_template = ChatPromptTemplate.from_template(prompt)
+    final_prompt = prompt_template.format(context=context, question_query=query)
+    return final_prompt
+  
+def afficher_menu():
+    print("Menu:")
+    print("0 - Quitter ")
+    print("1 - Questionner votre document ")
+
+    
+              
+def main():
+    query =""
+    while True:
+        afficher_menu()
+        choix = int(input("Veuillez choisir une option : "))
+        if choix == 0:
+            print("Sorite du programme")
+            break
+        elif choix==1:
+            query = input("Pose ta question : ")
+        else:
+            print("Erreur : Vous devez entrer 0 ou 1.")
+        
+        
+        path = "./Docs"
+        embedding = OllamaEmbeddings(model="nomic-embed-text")  # Spécification du modèle d'embedding
+        docs = load_docs(path)  # Chargement des documents
+        chunks = split(docs)  # Découpage des documents en morceaux
+        vectorStore = initDb(chunks=chunks, folderPath=path, embeddings=embedding)  # Initialisation de la base FAISS
+        # Recherche des résultats les plus pertinents
+        results = vectorStore.similarity_search(query=query)
+        
+        # Préparation des morceaux pertinents pour la réponse
+        context = ""
+        for r in results[:2]:  # Limite aux 2 premiers résultats pour éviter d'être trop verbeux
+            context += r.page_content + "\n\n"
+            
+        # # Affichage des résultats sélectionnés
+        # print("Contexte utilisé pour répondre à la question:")
+        # print(context)
+            
+        # Création du prompt pour le modèle LLM
+        prompt = llm_response(query=query, context=context)
+            
+        # Utilisation du modèle LLM pour générer une réponse
+        model = ollama.Ollama(model="mistral")  # Initialisation du modèle Ollama avec Mistral
+        response = model.invoke(prompt)  # Appel au modèle pour obtenir une réponse
+            
+        # Affichage de la réponse générée par le modèle
+        print("Réponse générée par le modèle :")
+        print(response)
+        
+if __name__ == "__main__":
     main()
