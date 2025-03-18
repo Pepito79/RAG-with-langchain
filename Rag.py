@@ -35,13 +35,6 @@ def initDb(chunks,folderPath,embeddings):
         vectorstore.save_local(folderPath)
     return vectorstore
 
-# def embedQuery(query ,embedding):
-#     return embedding.embed_query(query)
-
-
-from langchain_community.llms import ollama
-from langchain_core.prompts import ChatPromptTemplate
-
 def llm_response(query, context):
     # Construction du prompt en utilisant un formatage propre
     prompt = f"""
@@ -60,9 +53,7 @@ def afficher_menu():
     print("Menu:")
     print("0 - Quitter ")
     print("1 - Questionner votre document ")
-
-    
-              
+          
 def main():
     query =""
     while True:
@@ -77,7 +68,7 @@ def main():
             print("Erreur : Vous devez entrer 0 ou 1.")
         
         
-        path = "./Docs"
+        path = "./Docs"    #À modifier si vous avez un chemin différent
         embedding = OllamaEmbeddings(model="nomic-embed-text")  # Spécification du modèle d'embedding
         docs = load_docs(path)  # Chargement des documents
         chunks = split(docs)  # Découpage des documents en morceaux
